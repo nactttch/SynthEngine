@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "synthengine",
+  "description": "AI-first 3D game engine. Headless, custom OpenGL, built for AI agents (Claude Code, Codex, etc.). Scan assets and build any genre: FPS, racing, RPG, horror, platformer.",
+  "owner": {
+    "name": "nactttch",
+    "url": "https://github.com/nactttch"
+  },
+  "plugins": [
+    {
+      "name": "synthengine",
+      "description": "AI-first headless 3D game engine skill. Scan raw assets, run a 6-agent pipeline, and produce a playable game for any genre.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

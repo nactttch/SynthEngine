@@ -1,0 +1,12 @@
+{
+  "name": "synthengine",
+  "version": "1.0.0",
+  "description": "AI-first headless 3D game engine. Custom OpenGL, no Godot, no Unity. Scan assets, run a 6-agent pipeline, build any game genre.",
+  "author": {
+    "name": "nactttch",
+    "url": "https://github.com/nactttch"
+  },
+  "homepage": "https://github.com/nactttch/SynthEngine",
+  "license": "MIT",
+  "skills": "./skills/"
+}
