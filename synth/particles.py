@@ -13,10 +13,10 @@ class ParticleSystem:
         self.ctx = ctx
         self._pool: list[list] = []   # [x,y,z, vx,vy,vz, r,g,b,a, size, life, max_life, gravity]
         self._prog = self._build()
-        self._vbo  = ctx.buffer(reserve=self.MAX * 9 * 4)
+        self._vbo  = ctx.buffer(reserve=self.MAX * 8 * 4)
         self._vao  = ctx.vertex_array(
             self._prog,
-            [(self._vbo, "3f 4f 1f 1f", "in_pos", "in_color", "in_size", "in_life")],
+            [(self._vbo, "3f 4f 1f", "in_pos", "in_color", "in_size")],
         )
 
     # ── emitters ──────────────────────────────────────────────────────────
@@ -105,7 +105,6 @@ class ParticleSystem:
             data.extend(p[0:3])           # pos
             data.extend(p[6:10])          # color rgba
             data.append(p[10])            # size
-            data.append(p[11] / p[12])    # life ratio
         arr = np.array(data, dtype=np.float32)
         self._vbo.write(arr.tobytes())
 
@@ -127,7 +126,6 @@ class ParticleSystem:
 in vec3 in_pos;
 in vec4 in_color;
 in float in_size;
-in float in_life;
 uniform mat4 m_view;
 uniform mat4 m_proj;
 out vec4 v_color;
