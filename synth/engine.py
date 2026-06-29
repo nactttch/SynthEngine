@@ -57,7 +57,9 @@ class Engine:
         self.hud       = HUD(self.ctx, self.W, self.H)
         self.loader    = SceneLoader(self.game_dir)
         self.clock     = pygame.time.Clock()
-        self._timer    = 0.0
+        self._timer      = 0.0
+        self._menu_title = "SynthEngine"
+        self._menu_next  = None
 
     # ── entry point ───────────────────────────────────────────────────────
 
@@ -114,12 +116,20 @@ class Engine:
     # ── event handling ────────────────────────────────────────────────────
 
     def _events(self, dt: float):
+        in_menu = self.state == GameState.MENU
+        pygame.event.set_grab(not in_menu)
+        pygame.mouse.set_visible(in_menu)
+
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 self.running = False
             elif ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     self.running = False
+                elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER) and self.state == GameState.MENU:
+                    self.state = GameState.PLAYING
+                    if self._menu_next:
+                        self._load_scene(self._menu_next)
                 elif ev.key == pygame.K_r and self.state == GameState.DEAD:
                     self._respawn()
                 elif ev.key == pygame.K_q:
@@ -308,5 +318,8 @@ class Engine:
             hud.message("MISSION COMPLETE!", (80, 255, 120), y_offset=self.hud.h // 2 - 40)
             hud.message(f"Kills: {self.combat.kills}   Score: {self.combat.score}",
                         (220, 220, 220), y_offset=self.hud.h // 2 + 20)
+
+        elif self.state == GameState.MENU:
+            hud.menu_screen(self._menu_title)
 
         hud.flush(dt)

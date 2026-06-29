@@ -4,6 +4,8 @@
 
 No Godot. No Unity. No existing engine underneath. SynthEngine is a custom OpenGL renderer, physics system, audio engine, and scripting runtime — designed to be driven entirely by AI without a visual editor.
 
+> **This plugin is self-improving.** AI agents like [Claude Code](https://claude.ai/code) and [Codex](https://openai.com/codex) actively fix bugs, add features, and extend the engine as they use it — then push the changes back here. You don't need to wait for manual updates: every agent session that hits a bug or adds a feature makes the plugin better for everyone. The engine you pull today will be more capable than the one from last week, because AI agents have been using it in real projects and patching it in place.
+
 ## Install as a skill (Claude Code / compatible agents)
 
 ```

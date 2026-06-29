@@ -113,6 +113,24 @@ class HUD:
         txt = self._f_lg.render(text, True, color)
         self._surf.blit(txt, (self.w//2 - txt.get_width()//2, y_offset))
 
+    def menu_screen(self, title: str):
+        overlay = pygame.Surface((self.w, self.h), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        self._surf.blit(overlay, (0, 0))
+
+        f_title = pygame.font.SysFont("monospace", 72, bold=True)
+        t = f_title.render(title, True, (160, 80, 255))
+        self._surf.blit(t, (self.w // 2 - t.get_width() // 2, self.h // 3 - 36))
+
+        sub = self._f_md.render("Press  ENTER  to begin your quest", True, (210, 180, 255))
+        self._surf.blit(sub, (self.w // 2 - sub.get_width() // 2, self.h // 2 + 10))
+
+        esc = self._f_sm.render("ESC — Quit", True, (120, 100, 160))
+        self._surf.blit(esc, (self.w // 2 - esc.get_width() // 2, self.h // 2 + 50))
+
+        tip = self._f_sm.render("WASD move   MOUSE aim   LMB cast   Q switch spell", True, (90, 80, 130))
+        self._surf.blit(tip, (self.w // 2 - tip.get_width() // 2, self.h - 36))
+
     def show_message(self, text: str, color=(255, 255, 80), duration: float = 3.0):
         """Flash a timed message (call once, shown automatically in flush)."""
         self._msg = [text, color, duration]
