@@ -1,12 +1,9 @@
-.env
 __pycache__/
 *.py[cod]
-*.pyo
-.godot/
-output/
-*.import
 .venv/
 venv/
 *.egg-info/
 dist/
 build/
+synth-output/
+*.spec

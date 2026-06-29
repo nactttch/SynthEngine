@@ -1,111 +1,129 @@
 # SynthEngine
 
-**AI-driven game engine for Claude Code, Codex, and similar agents.**
+**A 3D game engine built from scratch for AI agents.**
 
-Point SynthEngine at a folder of game assets, describe the game you want in plain English, and a 6-agent AI pipeline produces a complete, openable **Godot 4** project — exportable to **Windows EXE** and **Android APK**.
+No Godot. No Unity. No existing engine underneath. SynthEngine is a custom OpenGL renderer, physics system, audio engine, and scripting runtime — designed to be driven entirely by AI without a visual editor.
 
-## How It Works
+## Install as a skill (Claude Code / compatible agents)
 
 ```
-[Asset Folder] + [Plain-English Request]
-          ↓
-     Asset Scanner
-          ↓
- ┌─────────────────────────────────────┐
- │           6-Agent Pipeline          │
- │                                     │
- │  1. Architect    → Game Design Doc  │
- │  2. Asset Curator → Asset Map       │
- │  3. World Builder → Level Layout    │
- │  4. Scripter      → GDScript Code   │
- │  5. Debugger      → Bug Fixes       │
- │  6. Builder       → Godot Project   │
- └─────────────────────────────────────┘
-          ↓
-   output/game/  (open in Godot 4)
-          ↓
-   Export → Windows EXE / Android APK
+pi install github:nactttch/SynthEngine
 ```
+Then invoke with `/synthengine` — the agent scans your assets and builds a complete game.
 
-## Quick Start
+## Manual install (copy skill file)
 
 ```bash
 git clone https://github.com/nactttch/SynthEngine
-cd SynthEngine
-pip install -r requirements.txt
-cp .env.example .env          # add your ANTHROPIC_API_KEY
-
-python main.py \
-  --game-dir ./my_game_assets \
-  --request  "build an fps survival game"
+cp -r SynthEngine/skills/synthengine ~/.claude/skills/
 ```
 
-The generated Godot 4 project lands in `./output/game/`.
+## Run the engine directly
+
+```bash
+pip install moderngl pygame numpy trimesh pillow
+python -m synth <your-game-dir>
+```
+
+## How it works
+
+When `/synthengine` is invoked, a 6-agent pipeline runs:
+
+```
+Asset Scanner  →  finds all models, textures, sounds, VFX
+     │
+     ▼
+Architect      →  designs the game (genre, mechanics, levels, enemies)
+     │
+     ▼
+Asset Curator  →  maps your assets to game roles
+     │
+     ▼
+World Builder  →  designs 3D level layouts as scene JSON
+     │
+     ▼
+Scripter       →  writes Python scripts using the SynthEngine API
+     │
+     ▼
+Debugger       →  reviews and fixes all generated scripts
+     │
+     ▼
+Builder        →  finalises project structure, copies assets
+     │
+     ▼
+python -m synth ./output/game   ←  runs the finished game
+```
+
+## Engine architecture
+
+| Module | What it does |
+|--------|-------------|
+| `synth/engine.py` | Game loop, scene transitions, input dispatch |
+| `synth/renderer.py` | ModernGL OpenGL renderer — loads GLB/OBJ, Blinn-Phong lighting |
+| `synth/physics.py` | FPS capsule physics — gravity, ground snap, AABB wall collision |
+| `synth/audio.py` | Music + SFX via pygame.mixer |
+| `synth/scene.py` | Loads `.scene.json` files |
+| `synth/scripting.py` | Dynamically loads Python scripts, runs lifecycle hooks |
+| `synth/api/` | `Vec3`, `Mat4`, `SceneNode`, `Script` base class |
+| `synth/shaders/` | Vertex + fragment GLSL shaders (Blinn-Phong + fog) |
+
+## Game format
+
+A SynthEngine game is a directory:
+```
+my-game/
+├── game.json                ← { "title": "...", "start_scene": "scenes/level1.scene.json" }
+├── scenes/
+│   ├── level1.scene.json    ← objects, lighting, audio, fog config
+│   └── level2.scene.json
+├── scripts/
+│   ├── enemy.py             ← extends Script from synth.api
+│   └── pickup.py
+└── assets/
+    ├── models/              ← .glb, .obj, .fbx
+    ├── sounds/              ← .wav, .mp3, .ogg
+    └── textures/            ← .png, .jpg
+```
+
+## Script API
+
+```python
+from synth.api import Script, Vec3
+
+class Enemy(Script):
+    health: float = 100.0
+    speed:  float = 3.0
+
+    def on_ready(self):
+        self.node.play_sound("assets/sounds/growl.wav", loop=True)
+
+    def on_update(self, delta: float):
+        player = self.node.find_type("player")
+        if player:
+            self.node.position += (player.position - self.node.position).normalized() * self.speed * delta
+
+    def on_hit(self, damage: float, source=None):
+        self.health -= damage
+        if self.health <= 0:
+            self.node.destroy()
+```
+
+## Export to EXE / APK
+
+```bash
+# Windows EXE (requires PyInstaller)
+python build.py ./my-game --target exe
+
+# Android APK (requires Buildozer, Linux/Mac)
+python build.py ./my-game --target apk
+```
 
 ## Requirements
 
 - Python 3.11+
-- `ANTHROPIC_API_KEY` environment variable
-- [Godot 4.3+](https://godotengine.org/download/) to open and export the project
-
-## CLI Options
-
-```
---game-dir   PATH    Folder containing your game assets (models, sounds, textures, VFX)
---request    TEXT    What kind of game to build (plain English)
---output     PATH    Output directory (default: ./output)
---model      NAME    Claude model (default: claude-sonnet-4-6)
---skip-debug         Skip the Debugger agent pass
-```
-
-## Agents
-
-| # | Agent | Role |
-|---|-------|------|
-| 1 | **Architect** | Reads assets + request → full Game Design Document |
-| 2 | **Asset Curator** | Maps available assets to game roles (player, enemies, env) |
-| 3 | **World Builder** | Designs scene layouts with 3D object placement |
-| 4 | **Scripter** | Writes complete GDScript 4 for every game system |
-| 5 | **Debugger** | Reviews and fixes all generated code |
-| 6 | **Builder** | Assembles the final Godot 4 project structure |
-
-## Output Structure
-
-```
-output/
-├── artifacts/              # Per-agent JSON outputs (for inspection/debugging)
-│   ├── 01_game_design.json
-│   ├── 02_curated_assets.json
-│   ├── 03_world_map.json
-│   ├── 04_scripts.json
-│   ├── 05_debug_report.json
-│   └── 06_builder_output.json
-└── game/                   # The generated Godot 4 project
-    ├── project.godot       ← open this in Godot 4
-    ├── export_presets.cfg
-    ├── scenes/*.tscn
-    ├── scripts/*.gd
-    ├── assets/
-    └── SETUP.md
-```
-
-## Exporting the Game
-
-1. Install [Godot 4](https://godotengine.org/download/) and open `output/game/project.godot`
-2. Install export templates: **Editor → Manage Export Templates**
-3. **Project → Export**
-   - **Windows Desktop** → Export Project → `.exe`
-   - **Android** → configure keystore → Export Project → `.apk`
-
-## Supported Asset Types
-
-| Type | Extensions |
-|------|-----------|
-| 3D Models | `.glb .gltf .obj .fbx .dae .blend .3ds .ply` |
-| Textures | `.png .jpg .webp .tga .bmp .exr .hdr .dds` |
-| Sounds | `.wav .mp3 .ogg .flac .aac .opus` |
-| VFX | `.vfx .particle .pcf .ptc` |
-| Shaders | `.gdshader .shader .glsl .hlsl` |
+- `pip install moderngl pygame numpy trimesh pillow`
+- For EXE: `pip install pyinstaller`
+- For APK: [Buildozer](https://buildozer.readthedocs.io/)
 
 ## License
 

@@ -1,0 +1,26 @@
+{
+  "name": "@nactttch/synthengine",
+  "version": "1.0.0",
+  "description": "AI-first 3D game engine. Custom-built for AI agents — no Godot, no Unity. Scan assets, build games, run them.",
+  "keywords": ["pi-package", "pi", "skills", "game-engine", "ai", "synthengine"],
+  "license": "MIT",
+  "author": {
+    "name": "nactttch",
+    "url": "https://github.com/nactttch"
+  },
+  "homepage": "https://github.com/nactttch/SynthEngine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nactttch/SynthEngine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nactttch/SynthEngine/issues"
+  },
+  "files": ["skills/", "synth/", "requirements.txt", "build.py", "LICENSE", "README.md"],
+  "pi": {
+    "skills": ["./skills"]
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
