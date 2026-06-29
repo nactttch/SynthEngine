@@ -1,317 +1,368 @@
 ---
 name: synthengine
 description: >
-  AI-first 3D game engine. Scans an asset folder, runs a 6-agent pipeline
-  (Architect, Asset Curator, World Builder, Scripter, Debugger, Builder),
-  and writes a complete SynthEngine game project (scene JSON + Python scripts)
-  ready to run with `python -m synth <game-dir>` — no Godot, no Unity,
-  no existing engine. Pure custom engine designed for AI agents.
-  Invoke with /synthengine [game-dir] [request] or let it ask you.
+  AI-first 3D game engine — custom-built, no Godot, no Unity. Scan assets,
+  run a 6-agent pipeline, write a complete SynthEngine game (scene JSON +
+  Python scripts) for any genre: FPS, racing, RPG, spell/magic, platformer,
+  horror. Includes shooting, enemy AI, vehicles, spells, HUD, particles,
+  skybox. Run with `python -m synth <game-dir>`. Invoke /synthengine
+  [game-dir] [request] or let it ask.
 argument-hint: "[game-dir] [game-request]"
 license: MIT
 ---
 
 # SynthEngine
 
-You are running the SynthEngine pipeline. Your tools (Bash, Read, Write) are
-the engine. You will scan a folder of game assets, design a game, and write
-all the files that `python -m synth <output-dir>` needs to run it.
+You are running the SynthEngine pipeline. You will scan a folder of game
+assets, think through a game design, and write all files that
+`python -m synth <output>` needs. You use your own tools — Bash, Read,
+Write. The engine renders the game. You design it.
 
-## SynthEngine Game Format
+---
 
-A SynthEngine game is a directory with:
+## Engine overview
+
+SynthEngine is a custom OpenGL 3D engine. It includes:
+- **Renderer**: Blinn-Phong lighting, procedural skybox, fog, texture support
+- **Physics**: Capsule gravity, ground snap, AABB wall collision, jumping
+- **Combat**: Raycasting hitscan + melee + spell weapons, preset library
+- **Enemy AI**: State machine (idle → patrol → chase → attack → dead)
+- **Vehicles**: Arcade car physics with drift and handbrake
+- **Particles**: CPU emitters (explosion, blood, magic, muzzle flash, smoke)
+- **HUD**: Health bar, ammo, mana, minimap, score, crosshair, messages
+- **Scripting**: Python scripts per object, lifecycle hooks
+
+---
+
+## Game project format
+
 ```
 <game-dir>/
-├── game.json              ← manifest (start scene, title)
+├── game.json
 ├── scenes/
-│   └── *.scene.json       ← one file per level
+│   └── *.scene.json
 └── scripts/
-    └── *.py               ← one file per game object class
+    └── *.py
 ```
 
 ### game.json
 ```json
 {
-  "title": "My FPS Game",
-  "start_scene": "scenes/level1.scene.json"
+  "title":       "My Game",
+  "start_scene": "scenes/level1.scene.json",
+  "weapons":     ["pistol", "rifle"]
 }
 ```
 
-### scene.json schema
-Every field is optional except `name`.
+Built-in weapon presets (use by name):
+`pistol` `rifle` `shotgun` `sniper` `knife` `fireball` `icebolt`
+
+---
+
+### scene.json — full schema
+
 ```json
 {
-  "name": "Level1",
-  "next_scene": "scenes/level2.scene.json",
-  "spawn": [0.0, 1.8, 0.0],
-  "sky_color": [0.4, 0.6, 0.9],
+  "name":        "Level1",
+  "next_scene":  "scenes/level2.scene.json",
+  "spawn":       [0.0, 1.8, 8.0],
+  "sky_color":   [0.45, 0.62, 0.82],
   "fog_enabled": true,
-  "fog": { "start": 20, "end": 80, "color": [0.5, 0.6, 0.7] },
+  "fog":         { "start": 20, "end": 70, "color": [0.45, 0.62, 0.82] },
   "lighting": {
-    "ambient": [0.25, 0.25, 0.3],
-    "directional": {
-      "direction": [0.5, -1.0, 0.3],
-      "color": [1.0, 0.95, 0.8]
-    }
+    "ambient":     [0.28, 0.28, 0.35],
+    "directional": { "direction": [0.6,-1.0,0.4], "color": [1.0, 0.92, 0.78] }
   },
   "audio": { "music": "assets/sounds/ambient.ogg" },
-  "objects": [
-    {
-      "id":       "floor_main",
-      "type":     "floor",
-      "mesh":     "assets/models/floor.glb",
-      "position": [0, 0, 0],
-      "rotation": [0, 0, 0],
-      "scale":    [20, 0.2, 20],
-      "color":    [0.5, 0.5, 0.5]
-    },
-    {
-      "id":       "wall_north",
-      "type":     "static",
-      "position": [0, 2, -10],
-      "scale":    [20, 4, 0.3],
-      "color":    [0.6, 0.55, 0.5]
-    },
-    {
-      "id":       "enemy_01",
-      "type":     "enemy",
-      "mesh":     "assets/models/enemy.glb",
-      "position": [5, 0.9, -8],
-      "scale":    [1, 1, 1],
-      "color":    [0.8, 0.2, 0.2],
-      "script":   "scripts/enemy.py",
-      "props":    { "health": 100, "speed": 3.0, "damage": 15 }
-    },
-    {
-      "id":       "rifle_pickup",
-      "type":     "pickup",
-      "position": [3, 0.5, -3],
-      "scale":    [0.5, 0.5, 0.5],
-      "color":    [0.3, 0.3, 0.9],
-      "props":    { "weapon": "rifle", "ammo": 30 }
-    },
-    {
-      "id":       "exit_door",
-      "type":     "trigger",
-      "position": [0, 1, -18],
-      "scale":    [3, 3, 1],
-      "props":    { "action": "next_scene" }
-    }
-  ]
+  "objects": [ ... ]
 }
 ```
 
 ### Object types
+
 | type | behaviour |
 |------|-----------|
-| `floor` | static geometry + ground collision surface |
-| `static` | solid wall/prop, AABB collision |
-| `enemy` | scriptable AI object |
-| `pickup` | scriptable item |
-| `trigger` | invisible volume, fires action when player enters |
-| `prop` | decorative static (no collision) |
+| `floor`  | static geometry + ground collision surface |
+| `static` | solid wall/prop — AABB collision |
+| `enemy`  | scriptable AI — attach `"script"` |
+| `pickup` | collected when player walks into it |
+| `trigger`| invisible volume — fires action on player enter |
+| `prop`   | decorative, no collision |
+| `vehicle`| driveable — attach vehicle script |
 
-### Script API
-Scripts live in `scripts/` and are attached to objects via `"script"` in the scene JSON.
-Props from the scene JSON are set as attributes before `on_ready()` is called.
+### Object fields
+```json
+{
+  "id":       "unique_id",
+  "type":     "static",
+  "mesh":     "assets/models/wall.glb",
+  "position": [x, y, z],
+  "rotation": [rx, ry, rz],
+  "scale":    [sx, sy, sz],
+  "color":    [r, g, b],
+  "script":   "scripts/enemy.py",
+  "props":    { "key": value }
+}
+```
+
+When no `mesh` is given, the engine renders a colored box using `scale`.
+
+### Pickup props
+```json
+{ "weapon": "rifle", "ammo": 30 }   // give weapon
+{ "health": 40 }                     // restore health
+{ "ammo": 60 }                       // add ammo
+{ "mana": 50 }                       // restore mana
+```
+
+### Trigger props
+```json
+{ "action": "next_scene" }  // go to next_scene
+{ "action": "win" }         // end game with WIN
+{ "action": "kill" }        // instant death
+```
+
+---
+
+## Script API
+
+Every game script lives in `scripts/` and extends `Script`.
+Props from the scene JSON are injected as attributes before `on_ready`.
 
 ```python
-# scripts/enemy.py
 from synth.api import Script, Vec3
 
 class Enemy(Script):
     health: float = 100.0
     speed:  float = 3.0
-    damage: float = 15.0
+
+    def on_ready(self):   ...
+    def on_update(self, delta: float): ...
+    def on_hit(self, damage: float, source=None): ...
+    def on_trigger_enter(self, other): ...
+```
+
+### SceneNode methods (self.node)
+```python
+self.node.position          # Vec3 — read/write
+self.node.rotation          # Vec3 euler degrees — read/write
+self.node.scale             # Vec3 — read/write
+self.node.props             # dict from scene JSON
+self.node.find(id)          # SceneNode | None
+self.node.find_type(type)   # first node of that type
+self.node.play_sound(path, loop=False)
+self.node.destroy()
+self.node._engine           # the Engine instance (combat, hud, particles, audio)
+```
+
+### Engine systems accessible from scripts
+```python
+engine = self.node._engine
+engine.combat.take_damage(amount)      # damage player, returns True if dead
+engine.combat.heal(amount)
+engine.combat.on_enemy_killed(score)
+engine.hud.show_message("text", (r,g,b), duration=3.0)
+engine.particles.explosion(pos)
+engine.particles.blood(pos)
+engine.particles.magic(pos, color)
+engine.particles.smoke(pos)
+engine.particles.sparks(pos, normal)
+engine.audio.play_sfx("assets/sounds/hit.wav")
+engine.state = "dead" | "win" | "playing"
+engine._timer                          # seconds since scene load
+```
+
+### Vec3 (all arithmetic works)
+```python
+v = Vec3(1, 2, 3)
+v.length()
+v.normalized()
+v.dot(other)
+v.cross(other)
+v + other  /  v - other  /  v * scalar
+Vec3.from_list([1,2,3])
+```
+
+---
+
+## Built-in components (import and use in scripts)
+
+### EnemyAI
+```python
+from synth.enemy_ai import EnemyAI
+
+class Soldier(Script):
+    health = 100.0; speed = 3.0; damage = 12.0; sight = 14.0; score = 100
 
     def on_ready(self):
-        self.node.play_sound("assets/sounds/enemy_idle.wav", loop=True)
-        self._attack_timer = 0.0
+        self._ai = EnemyAI(
+            speed=self.speed, chase_speed=self.speed*1.6,
+            sight_range=self.sight, attack_range=2.2,
+            attack_damage=self.damage, attack_rate=0.9,
+            patrol_path=[Vec3(-5,0.9,0), Vec3(5,0.9,0)],
+        )
+        self._dead = False
 
-    def on_update(self, delta: float):
-        player = self.node.find_type("player")
-        if not player:
-            return
-        dist = (player.position - self.node.position).length()
-        if dist < 12.0:
-            direction = (player.position - self.node.position).normalized()
-            direction.y = 0
-            self.node.position += direction * self.speed * delta
+    def on_update(self, delta):
+        if self._dead: return
+        attacked = self._ai.update(delta, self.node)
+        if attacked:
+            dead = self.node._engine.combat.take_damage(self.damage)
+            if dead: self.node._engine.state = "dead"
 
-        self._attack_timer += delta
-        if self._attack_timer > 1.5 and dist < 2.0:
-            self._attack_timer = 0.0
-            # Damage player via game_manager autoload
-            self.node.play_sound("assets/sounds/enemy_attack.wav")
-
-    def on_hit(self, damage: float, source=None):
+    def on_hit(self, damage, source=None):
         self.health -= damage
-        self.node.play_sound("assets/sounds/enemy_hurt.wav")
         if self.health <= 0:
-            self.node.play_sound("assets/sounds/enemy_death.wav")
+            self._dead = True; self._ai.die()
+            self.node._engine.combat.on_enemy_killed(self.score)
+            self.node._engine.particles.explosion(self.node.position)
             self.node.destroy()
 ```
 
-SceneNode methods available inside scripts:
-- `self.node.position` — Vec3, read/write
-- `self.node.rotation` — Vec3 (euler degrees), read/write
-- `self.node.scale`    — Vec3, read/write
-- `self.node.play_sound(path, loop=False)`
-- `self.node.find(id)` — returns SceneNode or None
-- `self.node.find_type(type_str)` — first node of that type or None
-- `self.node.destroy()` — removes object from scene
-- `self.node.props`    — dict of scene JSON props
+### Vehicle (racing / car games)
+```python
+from synth.vehicle import Vehicle
+
+class Car(Script):
+    max_speed = 30.0; acceleration = 20.0
+
+    def on_ready(self):
+        self._car = Vehicle(max_speed=self.max_speed, acceleration=self.acceleration)
+
+    def on_update(self, delta):
+        self._car.update(delta, self.node)
+        engine = self.node._engine
+        engine.renderer.camera.follow(
+            self.node.position, self.node.rotation.y, dist=7, height=3
+        )
+        engine.hud.speed_display(self._car.speed_kmh)
+```
+
+### Spell system (magic / RPG games)
+Use `fireball` or `icebolt` from built-in weapon presets, or define custom:
+```python
+from synth.combat import WeaponDef
+engine.combat.add_weapon_def(WeaponDef(
+    "Thunder", damage=90, fire_rate=0.5, ammo=15, type="spell"
+))
+```
+Pair with `engine.particles.magic(hit_pos, color)` for visual feedback.
+
+---
+
+## Genre guides
+
+### FPS / Shooter
+- Camera: default (first-person, mouse look)
+- Weapons: use preset names in `game.json` `"weapons"` list
+- Enemy: `soldier.py` using `EnemyAI`
+- Scale: floor `[40,0.2,40]`, walls `[40,4,0.4]`, player scale `[0.8,1.8,0.8]`
+- Include cover objects (scale `[3,2,1]`), crates, pillars
+- Exit trigger at far end of level
+
+### Racing / Car Game
+- Remove combat weapons: `"weapons": []`
+- Add a `vehicle` object with a car script using `Vehicle` component
+- Camera follows the car: call `engine.renderer.camera.follow(...)` in on_update
+- Track: long floor `[80,0.2,10]`, barrier walls on sides
+- Lap trigger: `{"action": "next_scene"}` at finish line
+- Show speed: `engine.hud.speed_display(kmh)`
+
+### RPG / Magic Game
+- Use `fireball` and `icebolt` weapons
+- Enemy has high health, player has mana bar
+- Write custom spells with `WeaponDef(type="spell")`
+- Use `particles.magic(hit_pos, color)` for spell VFX
+- Use `particles.smoke(pos)` for atmospheric effect
+- Add health pickups with mana restore: `{"health": 30, "mana": 40}`
+
+### Horror
+- Dark sky: `"sky_color": [0.02, 0.01, 0.01]`
+- Dense fog: `"fog": {"start": 5, "end": 18}`
+- Low ambient: `"ambient": [0.05, 0.04, 0.06]`
+- Enemy: high speed, close attack range, jump-scare behavior
+- Use `particles.smoke(pos)` for atmosphere
+
+### Platformer
+- Top-down camera: call `engine.renderer.camera.top_down(player_pos, height=15)` from a player script
+- Platforms: floor objects at varying heights
+- Jump: physics handles it (SPACE key)
+- Enemies patrol between waypoints using EnemyAI `patrol_path`
 
 ---
 
 ## Pipeline — follow these steps exactly
 
 ### Step 0 — Get parameters
-
-If the user did not provide them as arguments, ask:
-1. **Game directory** — path containing the raw assets (models, sounds, textures, VFX)
-2. **Game request** — what game to build (e.g. "fps survival horror", "sci-fi shooter")
-3. **Output directory** — where to write the game project (default: `./synth-output`)
+Ask if not provided:
+1. **Game directory** — raw assets folder
+2. **Game request** — e.g. "racing game with drifting" / "horror FPS" / "magic RPG"
+3. **Output directory** — default `./synth-output`
 
 ### Step 1 — Asset Scanner
-
-Run:
 ```bash
 find <game-dir> -type f | sort
 ```
-Categorize every file:
-- **models**: `.glb .gltf .obj .fbx .dae .blend .ply`
-- **textures**: `.png .jpg .jpeg .webp .tga .bmp .exr .hdr`
-- **sounds**: `.wav .mp3 .ogg .flac .aac .opus`
-- **vfx**: `.vfx .particle .pcf`
-- **scripts**: `.py .lua .gd`
-
-Print a short summary. Save the manifest to `<output>/artifacts/01_manifest.json`.
+Categorize: models (.glb .gltf .obj .fbx), textures (.png .jpg), sounds (.wav .mp3 .ogg), vfx (.particle).
+Save to `<output>/artifacts/01_manifest.json`.
 
 ### Step 2 — Architect Agent
+Think as a senior game designer. Pick the genre. Design:
+- Title, genre, premise
+- Player setup for this genre
+- Weapons / spells / vehicle
+- Enemy types and counts
+- Level themes and objectives
 
-**Role:** Senior game designer. Read the asset list and user request. Design a complete game.
-
-Think through:
-- Genre, title, premise
-- Player perspective (first-person for FPS)
-- Weapons (what models can serve as weapons?)
-- Enemy types
-- Level count and themes
-- Win/lose condition
-- Art style that fits available assets
-
-Save to `<output>/artifacts/02_game_design.json`:
-```json
-{
-  "title": string,
-  "genre": string,
-  "premise": string,
-  "player": { "perspective": "first_person", "health": 100, "speed": 5 },
-  "weapons": [{ "name": string, "model": string|null, "damage": number, "fire_rate": number, "ammo": number }],
-  "enemies": [{ "name": string, "model": string|null, "health": number, "speed": number, "damage": number }],
-  "levels":  [{ "name": string, "theme": string, "enemy_count": number, "objective": string }],
-  "win_condition": string,
-  "lose_condition": string
-}
-```
+Save to `<output>/artifacts/02_game_design.json`.
 
 ### Step 3 — Asset Curator Agent
-
-**Role:** Art director. Map every available asset to a game role. Be creative — a
-sci-fi crate model works as a wall prop, a dragon model is an enemy, etc.
-
-Save to `<output>/artifacts/03_curated_assets.json`:
-```json
-{
-  "player_model":     string|null,
-  "weapon_models":    { "<weapon-name>": string|null },
-  "enemy_models":     { "<enemy-name>": string|null },
-  "environment":      { "floor": string|null, "walls": [string], "props": [string] },
-  "sounds": {
-    "music":          string|null,
-    "ambient":        string|null,
-    "footstep":       string|null,
-    "shoot":          string|null,
-    "enemy_idle":     string|null,
-    "enemy_hurt":     string|null,
-    "enemy_death":    string|null,
-    "enemy_attack":   string|null,
-    "pickup":         string|null
-  },
-  "missing_critical": [string]
-}
-```
+Map every asset to a role. Fallback to box geometry when no mesh is available.
+Save to `<output>/artifacts/03_curated_assets.json`.
 
 ### Step 4 — World Builder Agent
+Design scene layouts. For each level:
+- Choose dimensions
+- Place floor, 4 walls, cover/props
+- Place enemies at `position.y = 0.9` (or `scale.y/2` for larger enemies)
+- Place pickups and triggers
+- Choose sky, fog, and lighting
 
-**Role:** Level designer. For each level in the game design, create a complete scene.
-Design fun layouts: corridors, open areas, cover objects, good sightlines.
-
-Rules:
-- Y is up. Player eye height is 1.8.
-- Floor `scale.y` = 0.2. Wall `scale.y` = 4.
-- Enemies go on the floor (position.y = 0.9 for a scale-1 enemy).
-- Every level needs: floor, walls (4 sides minimum), at least one enemy spawn, one exit trigger.
-- Put weapon pickups and health pickups between enemies.
-
-Write each scene to `<output>/game/scenes/<name>.scene.json`.
+Write each to `<output>/game/scenes/<name>.scene.json`.
 
 ### Step 5 — Scripter Agent
+Write **complete, working** Python scripts. No TODOs, no placeholders.
+Match the genre:
+- FPS: `soldier.py` with EnemyAI
+- Racing: `car.py` with Vehicle
+- RPG: `mage_enemy.py`, `chest.py`
+- Horror: `monster.py` with fast EnemyAI + stalk behavior
 
-**Role:** Game programmer. Write complete, working Python scripts using the SynthEngine
-Script API shown above. No placeholders, no TODOs.
-
-Required scripts:
-- `scripts/enemy.py` — patrol/chase AI, on_hit handler
-- `scripts/pickup.py` — weapon/health/ammo pickup logic
-- `scripts/boss.py` — boss enemy if any (harder AI, more health)
-
-Write each to `<output>/game/scripts/<name>.py`.
-Save script list to `<output>/artifacts/04_scripts.json`.
+Write to `<output>/game/scripts/<name>.py`.
 
 ### Step 6 — Debugger Agent
+Read every script. Check:
+- `Vec3` arithmetic (use Vec3 ops, not numpy)
+- `self.node._engine` — correct attribute access
+- `delta` present in `on_update` signature
+- `self._dead` guard before `on_hit`/`on_update` after `destroy()`
+- `EnemyAI` imported correctly
 
-**Role:** QA engineer. Re-read every script you wrote. Check for:
-- `Vec3` used as numpy array (they're different — Vec3 has .x/.y/.z, use Vec3 arithmetic)
-- Calling methods that don't exist on SceneNode
-- `on_update` missing `delta` parameter
-- Unclosed files or resources
-- Logic bugs (enemy never reaches player, health never depletes, etc.)
-
-Fix all issues in place. Update the files on disk.
-Save report to `<output>/artifacts/05_debug.json`.
+Fix in place. Save report to `<output>/artifacts/05_debug.json`.
 
 ### Step 7 — Builder Agent
-
-**Role:** Project assembler. Write the `game.json` manifest, finalize all scene files,
-and copy assets to the right locations.
-
-Create `<output>/game/game.json`:
+Write `game.json`:
 ```json
-{
-  "title": "<game title>",
-  "version": "1.0.0",
-  "start_scene": "scenes/<first-level>.scene.json"
-}
+{ "title": "<title>", "start_scene": "scenes/level1.scene.json", "weapons": [...] }
 ```
-
-For each curated asset, copy it from `<game-dir>/<original-path>` to
-`<output>/game/assets/<category>/<filename>` using Bash:
-```bash
-cp <src> <dst>
-```
-
-Update all scene JSON files to use the new `assets/...` paths.
+Copy assets: `cp <game-dir>/<src> <output>/game/assets/<dst>`
+Update scene files to reference `assets/...` paths.
 
 ### Step 8 — Done
-
-Print a summary:
 ```
 SynthEngine build complete
-  Game: <title>
-  Levels: <N>   Enemies: <types>   Weapons: <types>
-  Output: <output>/game/
+  Game:    <title> (<genre>)
+  Levels:  N   Enemies: types   Weapons: types
 
 To run:
   pip install moderngl pygame numpy trimesh pillow

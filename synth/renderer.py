@@ -22,12 +22,36 @@ class Camera:
         self.pitch    = 0.0    # degrees, vertical
         self.aspect   = aspect
 
-    def set_position(self, pos: list | np.ndarray):
+    def set_position(self, pos):
         self.position = np.array(pos, dtype=np.float32)
 
     def rotate(self, dx: float, dy: float):
-        self.yaw  = (self.yaw + dx) % 360.0
+        self.yaw   = (self.yaw + dx) % 360.0
         self.pitch = max(-89.0, min(89.0, self.pitch - dy))
+
+    def follow(self, target_pos: Vec3, heading_deg: float,
+               dist: float = 6.0, height: float = 2.5):
+        """Third-person / race camera — orbits behind the target."""
+        rad = math.radians(heading_deg + 180)
+        self.position = np.array([
+            target_pos.x + math.sin(rad) * dist,
+            target_pos.y + height,
+            target_pos.z + math.cos(rad) * dist,
+        ], dtype=np.float32)
+        dx = target_pos.x - self.position[0]
+        dz = target_pos.z - self.position[2]
+        self.yaw   = math.degrees(math.atan2(dx, -dz))
+        self.pitch = math.degrees(math.atan2(
+            -(target_pos.y - self.position[1]), dist
+        ))
+
+    def top_down(self, target_pos: Vec3, height: float = 20.0):
+        """Top-down / isometric camera."""
+        self.position = np.array(
+            [target_pos.x, target_pos.y + height, target_pos.z], dtype=np.float32
+        )
+        self.pitch = -89.0
+        self.yaw   = 0.0
 
     @property
     def front(self) -> np.ndarray:
@@ -100,6 +124,7 @@ class Renderer:
         self.camera   = Camera()
         self._meshes: dict[str, MeshHandle] = {}
         self._program = self._build_program()
+        self._sky_prog, self._sky_vao = self._build_sky()
         self._scene: dict = {}
 
     # ── scene lifecycle ────────────────────────────────────────────────────
@@ -145,6 +170,36 @@ class Renderer:
     # ── render ────────────────────────────────────────────────────────────
 
     def render(self):
+        self._render_sky()
+        self._render_meshes()
+
+    def _render_sky(self):
+        """Procedural gradient skybox — rendered before meshes, no depth write."""
+        lighting = self._scene.get("lighting", {})
+        ld = lighting.get("directional", {})
+        sky = self._scene.get("sky_color", [0.4, 0.6, 0.9])
+
+        cam  = self.camera
+        view_no_t = cam.view_matrix().copy()
+        view_no_t[:, 3] = [0, 0, 0, 1]  # strip translation
+        proj = cam.proj_matrix()
+        try:
+            inv = np.linalg.inv(proj @ view_no_t)
+        except np.linalg.LinAlgError:
+            return
+
+        self.ctx.disable(moderngl.DEPTH_TEST)
+        self._sky_prog["m_inv_vp"].write(Mat4.gl_bytes(inv))
+        # Horizon ~ sky * 0.6, zenith = sky
+        self._sky_prog["u_sky_top"].value     = tuple(sky)
+        self._sky_prog["u_sky_horizon"].value = tuple(min(c * 0.6, 1.0) for c in sky)
+        self._sky_prog["u_sun_dir"].value      = tuple(
+            ld.get("direction", [0.5, -1.0, 0.3])
+        )
+        self._sky_vao.render(moderngl.TRIANGLE_STRIP)
+        self.ctx.enable(moderngl.DEPTH_TEST)
+
+    def _render_meshes(self):
         prog = self._program
         cam  = self.camera
 
@@ -183,6 +238,18 @@ class Renderer:
             handle.vao.render(moderngl.TRIANGLES)
 
     # ── internals ─────────────────────────────────────────────────────────
+
+    def _build_sky(self):
+        shader_dir = Path(__file__).parent / "shaders"
+        prog = self.ctx.program(
+            vertex_shader=(shader_dir / "sky.vert").read_text(),
+            fragment_shader=(shader_dir / "sky.frag").read_text(),
+        )
+        vbo = self.ctx.buffer(np.array(
+            [-1,-1, 1,-1, -1,1, 1,1], dtype=np.float32
+        ).tobytes())
+        vao = self.ctx.vertex_array(prog, [(vbo, "2f", "in_pos")])
+        return prog, vao
 
     def _build_program(self) -> moderngl.Program:
         shader_dir = Path(__file__).parent / "shaders"

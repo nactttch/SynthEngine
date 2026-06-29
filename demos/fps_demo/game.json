@@ -1,0 +1,5 @@
+{
+  "title": "SynthEngine FPS Demo",
+  "start_scene": "scenes/level1.scene.json",
+  "weapons": ["pistol", "rifle", "shotgun"]
+}

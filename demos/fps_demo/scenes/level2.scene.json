@@ -1,0 +1,43 @@
+{
+  "name": "Level 2 — The Bunker",
+  "next_scene": null,
+  "spawn": [0.0, 1.8, 14.0],
+  "sky_color": [0.15, 0.12, 0.10],
+  "fog_enabled": true,
+  "fog": { "start": 12, "end": 40, "color": [0.10, 0.08, 0.06] },
+  "lighting": {
+    "ambient": [0.15, 0.10, 0.08],
+    "directional": {
+      "direction": [0.3, -0.8, 0.5],
+      "color": [1.0, 0.60, 0.30]
+    }
+  },
+  "objects": [
+    { "id": "floor",    "type": "floor",  "position": [0,0,0],      "scale": [32,0.2,32],  "color": [0.30,0.28,0.26] },
+    { "id": "ceiling",  "type": "static", "position": [0,4,0],      "scale": [32,0.2,32],  "color": [0.25,0.23,0.21] },
+    { "id": "wall_n",   "type": "static", "position": [0,2,-15],    "scale": [32,4,0.4],   "color": [0.35,0.33,0.30] },
+    { "id": "wall_s",   "type": "static", "position": [0,2, 15],    "scale": [32,4,0.4],   "color": [0.35,0.33,0.30] },
+    { "id": "wall_e",   "type": "static", "position": [15,2,0],     "scale": [0.4,4,32],   "color": [0.35,0.33,0.30] },
+    { "id": "wall_w",   "type": "static", "position": [-15,2,0],    "scale": [0.4,4,32],   "color": [0.35,0.33,0.30] },
+
+    { "id": "divider1", "type": "static", "position": [-5,2,-4],    "scale": [0.4,4,14],   "color": [0.30,0.28,0.26] },
+    { "id": "divider2", "type": "static", "position": [5,2,4],      "scale": [0.4,4,14],   "color": [0.30,0.28,0.26] },
+    { "id": "door_l",   "type": "static", "position": [-5,1.5,-11], "scale": [0.4,3,3],    "color": [0.40,0.36,0.30] },
+
+    { "id": "barrel_1", "type": "static", "position": [-8,0.6,-5],  "scale": [0.7,1.2,0.7],"color": [0.20,0.18,0.10] },
+    { "id": "barrel_2", "type": "static", "position": [-7,0.6,-5],  "scale": [0.7,1.2,0.7],"color": [0.18,0.16,0.08] },
+    { "id": "console",  "type": "static", "position": [0,1,-13],    "scale": [4,2,1],      "color": [0.10,0.20,0.15] },
+
+    { "id": "grunt_1",  "type": "enemy",  "position": [-8,0.9,-2],  "scale": [0.8,1.8,0.8],"color": [0.45,0.20,0.15], "script": "scripts/soldier.py", "props": { "health": 100, "speed": 3.5, "damage": 18, "sight": 12, "score": 120 } },
+    { "id": "grunt_2",  "type": "enemy",  "position": [8,0.9,2],    "scale": [0.8,1.8,0.8],"color": [0.45,0.20,0.15], "script": "scripts/soldier.py", "props": { "health": 100, "speed": 3.8, "damage": 18, "sight": 12, "score": 120 } },
+    { "id": "grunt_3",  "type": "enemy",  "position": [-4,0.9,-10], "scale": [0.8,1.8,0.8],"color": [0.45,0.20,0.15], "script": "scripts/soldier.py", "props": { "health": 120, "speed": 4.0, "damage": 20, "sight": 14, "score": 150 } },
+    { "id": "grunt_4",  "type": "enemy",  "position": [4,0.9,-10],  "scale": [0.8,1.8,0.8],"color": [0.45,0.20,0.15], "script": "scripts/soldier.py", "props": { "health": 120, "speed": 4.0, "damage": 20, "sight": 14, "score": 150 } },
+    { "id": "boss",     "type": "enemy",  "position": [0,1.5,-13],  "scale": [1.4,3.0,1.4],"color": [0.60,0.10,0.10], "script": "scripts/boss.py",    "props": { "health": 500, "speed": 2.5, "damage": 35, "sight": 20, "score": 1000 } },
+
+    { "id": "pickup_shotgun",  "type": "pickup", "position": [-12,0.6,10], "scale": [0.4,0.4,0.4],"color": [0.80,0.50,0.10], "props": { "weapon": "shotgun", "ammo": 16 } },
+    { "id": "pickup_hp3",      "type": "pickup", "position": [12,0.6,5],   "scale": [0.4,0.4,0.4],"color": [0.90,0.15,0.15], "props": { "health": 50 } },
+    { "id": "pickup_ammo",     "type": "pickup", "position": [0,0.6,0],    "scale": [0.4,0.4,0.4],"color": [0.90,0.80,0.10], "props": { "ammo": 60 } },
+
+    { "id": "win_trigger", "type": "trigger", "position": [0,1.5,-13.5], "scale": [6,4,2], "props": { "action": "win" } }
+  ]
+}
